@@ -1,7 +1,16 @@
-name: Deploy EC2 with Terraform
+name: Deploy/Destroy EC2 with Terraform
 
 on:
-  workflow_dispatch:   # run manually
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Choose whether to deploy or destroy EC2"
+        required: true
+        default: "deploy"
+        type: choice
+        options:
+          - deploy
+          - destroy
   push:
     branches:
       - main
@@ -24,13 +33,18 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+          aws-region: eu-north-1   # Stockholm region
 
       - name: Terraform Init
         run: terraform init
 
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform plan -out=tfplan
 
-      - name: Terraform Apply
-        run: terraform apply -auto-approve
+      - name: Terraform Apply (Deploy EC2)
+        if: github.event.inputs.action == 'deploy'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy (Terminate EC2)
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
